@@ -1,0 +1,89 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>大鱼吃小鱼 · 珊瑚湾</title><style>
+*{box-sizing:border-box}body{margin:0;background:#061920;color:#e9fff7;font-family:system-ui,"Microsoft YaHei",sans-serif}main{max-width:1120px;margin:auto;padding:28px 5vw}header,footer,.hud{display:flex;align-items:center;justify-content:space-between;gap:12px}header{margin-bottom:18px}b{letter-spacing:.12em}small{color:#92c2bd}section{position:relative;border:1px solid #366367;border-radius:23px;overflow:hidden;background:#074857}canvas{display:block;width:100%;height:clamp(390px,68vh,680px);touch-action:none}.hud{position:absolute;top:16px;left:16px;right:16px;pointer-events:none;font-size:14px}.pill,button{border:1px solid #639b9b66;border-radius:30px;background:#082d38dd;color:white;padding:9px 15px}button{cursor:pointer;font:inherit;pointer-events:auto}.cover{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:#03223055}.cover[hidden]{display:none}.card{padding:26px 20px;color:white;text-shadow:0 2px 16px #033442}.card small{color:#aefce4;letter-spacing:.28em}.card h1{font-size:clamp(38px,7vw,82px);letter-spacing:.06em;margin:8px 0}.card p{font-size:16px;line-height:1.8}.card button{background:#ffda7c;color:#293026;font-weight:bold;padding:13px 34px;border:0;box-shadow:0 4px 0 #c59649}footer{margin-top:15px;font-size:13px;color:#add3cc;flex-wrap:wrap}button:focus-visible{outline:3px solid white}
+</style><main><header><b>◈ 珊瑚湾</b><small>CORAL BAY　/　海洋街机</small></header><section><canvas id="sea" aria-label="海底游戏区"></canvas><div class="hud"><span class="pill" id="stats">得分 0　·　体长 20</span><button id="pause" hidden>暂停 Ⅱ</button></div><div class="cover" id="cover"><div class="card"><small>珊瑚湾生存挑战</small><h1 id="title">大鱼吃小鱼</h1><p id="msg">你是金黄色的小鱼。吃掉比你小的鱼，躲开大鱼。<br>体长达到 50 即可称霸珊瑚湾。</p><button id="start">开始游戏　›</button></div></div></section><footer><span>方向键 / WASD 游动　·　鼠标指引　·　触屏拖动</span><span id="record">最高分　0</span></footer></main><script>
+const c=document.querySelector('canvas'),g=c.getContext('2d'),el=id=>document.getElementById(id);
+let W,H,x,y,size,score,fish=[],state='intro',keys=new Set(),target=null,face=1,last=0,t=0,best=0;
+try{best=Number(localStorage.reefBest)||0}catch{}el('record').textContent='最高分　'+best;
+function resize(){let r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);W=800;H=W*r.height/r.width;c.width=r.width*d;c.height=r.height*d;g.setTransform(c.width/W,0,0,c.height/H,0,0)}
+let bigFishCooldown=0;
+function spawn(initial=false){
+  const dir=Math.random()<.5?1:-1;
+  const large=bigFishCooldown<=0&&fish.filter(f=>f.r>=size).length<2&&Math.random()<.12;
+  if(large)bigFishCooldown=8;
+  const r=size*(large?1.18+Math.random()*.65:.35+Math.random()*.56);
+  return {dir,route:dir,r,x:initial?Math.random()*W:dir>0?-r*2:W+r*2,y:32+Math.random()*(H-72),v:24+Math.random()*41,k:Math.random()*6,color:large?'#ef8295':['#63e0c2','#68ccec','#a7e992'][Math.floor(Math.random()*3)]};
+}
+function reset(){size=20;score=0;x=W/2;y=H/2;target=null;keys.clear();face=1;bigFishCooldown=0;fish=[];for(let i=0;i<16;i++)fish.push(spawn(true));for(let f of fish)if(Math.hypot(f.x-x,f.y-y)<125)f.x=f.route>0?-2*f.r:W+2*f.r;hud()}
+function hud(){el('stats').textContent='得分 '+score+'　·　体长 '+Math.floor(size)+' / 50'}
+function overlay(mode,h,m,b){state=mode;el('cover').hidden=false;el('pause').hidden=true;el('title').textContent=h;el('msg').textContent=m;el('start').textContent=b;keys.clear();target=null}
+function play(){if(state!=='paused')reset();state='play';el('cover').hidden=true;el('pause').hidden=false}
+function hold(){if(state==='play')overlay('paused','海底小憩','准备好了就继续游吧。','继续游戏　›')}
+function end(win){best=Math.max(best,score);try{localStorage.reefBest=best}catch{}el('record').textContent='最高分　'+best;overlay('end',win?'珊瑚湾之王':'被大鱼吃掉了','本局得分 '+score+'　·　最终体长 '+Math.floor(size),'再玩一次　↻')}
+function body(a,b,r,dir,color,phase){g.save();g.translate(a,b);g.scale(dir*r,r);g.fillStyle=color;g.beginPath();g.moveTo(-.7,0);g.lineTo(-1.55,-.51);g.quadraticCurveTo(-1.38,Math.sin(phase)*.23,-1.55,.51);g.closePath();g.fill();g.beginPath();g.ellipse(0,0,1,.56,0,0,7);g.fill();g.fillStyle='#ffffff52';g.beginPath();g.ellipse(-.14,-.05,.34,.14,-.4,0,7);g.fill();g.fillStyle='#fff9de';g.beginPath();g.arc(.56,-.13,.16,0,7);g.fill();g.fillStyle='#12313a';g.beginPath();g.arc(.61,-.13,.087,0,7);g.fill();g.restore()}
+function decor(){let gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#197985');gr.addColorStop(.6,'#105266');gr.addColorStop(1,'#092a44');g.fillStyle=gr;g.fillRect(0,0,W,H);for(let i=0;i<8;i++){g.fillStyle='#adffea09';g.beginPath();g.moveTo(i*151,-5);g.lineTo(i*151+36,-5);g.lineTo(i*151-150,H*.83);g.closePath();g.fill()}for(let i=0;i<45;i++){let yy=H-((i*83+t*(5+i%7))%(H+12));g.strokeStyle='#b3eee538';g.lineWidth=1;g.beginPath();g.arc(i*127%W+5*Math.sin(t+i),yy,1+i%4,0,7);g.stroke()}for(let i=0;i<86;i++){let a=(i*97)%W,h=12+45*(.5+.5*Math.cos(a*.015))*(.5+.5*Math.sin(i*9));g.fillStyle=i%3?'#12505b':'#1d6668';g.beginPath();g.moveTo(a-5,H);g.quadraticCurveTo(a-8,H-h*.6,a+4*Math.sin(t+i),H-h);g.quadraticCurveTo(a+9,H-h*.5,a+5,H);g.fill()} }
+function swimSchool(dt,moveX=0,moveY=0){
+  bigFishCooldown=Math.max(0,bigFishCooldown-dt);
+  const player={x,y,r:size};
+  const neighbours=[player,...fish].filter(f=>f.x>=0&&f.x<=W);
+  const plans=fish.map(f=>{
+    let danger=null,prey=null,dangerGap=75+f.r,preyGap=115+f.r;
+    if(f.x>=0&&f.x<=W){
+      for(const other of neighbours){
+        if(other===f)continue;
+        const gap=Math.hypot(other.x-f.x,other.y-f.y)-other.r-f.r;
+        if(other===player&&other.r>f.r){
+          const rx=f.x-x,ry=f.y-y;
+          const approaching=moveX*rx+moveY*ry>.35*Math.hypot(moveX,moveY)*Math.hypot(rx,ry);
+          if(approaching&&gap<75+f.r){danger=player;dangerGap=-Infinity}
+          continue;
+        }
+        if(other.r>f.r&&gap<dangerGap){danger=other;dangerGap=gap}
+        if(other.r<f.r&&gap<preyGap&&(f.r>=size||(other.x-f.x)*f.route>0)){prey=other;preyGap=gap}
+      }
+    }
+    const focus=danger||prey;
+    let dx=f.r<size&&f.x>=0&&f.x<=W?f.route:f.dir,dy=Math.cos(t+f.k)*.14,speed=f.v;
+    if(focus){
+      const sign=danger?-1:1;
+      dx=(focus.x-f.x)*sign;dy=(focus.y-f.y)*sign;
+      if(danger&&danger!==player){
+        dx=f.route*Math.max(Math.abs(dx),Math.abs(dy)*1.5,1);
+      }
+      if(!dx&&!dy)dx=f.dir;
+      speed=danger?110+f.v*.65:85+f.v*.65;
+      if(danger&&((dy<0&&f.y<26)||(dy>0&&f.y>H-26))){
+        dx=(dx<0?-1:1)*Math.max(Math.abs(dx),Math.abs(dy));dy*=.15;
+      }
+    }
+    const length=Math.hypot(dx,dy)||1;
+    return {vx:dx/length*speed,vy:dy/length*speed};
+  });
+  fish.forEach((f,i)=>{
+    const blend=1-Math.exp(-7*dt);
+    f.vx=(f.vx??f.dir*f.v)*(1-blend)+plans[i].vx*blend;
+    f.vy=(f.vy??0)*(1-blend)+plans[i].vy*blend;
+    f.x+=f.vx*dt;f.y=Math.max(18,Math.min(H-18,f.y+f.vy*dt));
+    if(Math.abs(f.vx)>2)f.dir=Math.sign(f.vx);
+    if(f.x>W+2*f.r+2||f.x< -2*f.r-2)fish[i]=spawn();
+  });
+}
+function resolveHunts(){
+  const bySize=fish.slice().sort((a,b)=>b.r-a.r);
+  const eaten=new Set();
+  for(const hunter of bySize){
+    if(eaten.has(hunter)||hunter.x<0||hunter.x>W)continue;
+    for(const prey of bySize){
+      if(hunter.r<=prey.r||eaten.has(prey))continue;
+      if(Math.hypot(prey.x-hunter.x,(prey.y-hunter.y)*1.65)<(hunter.r+prey.r)*.65)eaten.add(prey);
+    }
+  }
+  fish=fish.map(f=>eaten.has(f)?spawn():f);
+}
+function frame(now){let dt=Math.min((now-last)/1000,.04);last=now;t+=dt;const oldX=x,oldY=y;decor();if(state==='play'){let dx=+keys.has('right')-keys.has('left'),dy=+keys.has('down')-keys.has('up');if(!dx&&!dy&&target){dx=target.x-x;dy=target.y-y}let n=Math.hypot(dx,dy);if(n){let s=target?Math.min(205*dt,n):205*dt;x+=dx/n*s;y+=dy/n*s;if(Math.abs(dx)>.01)face=Math.sign(dx)}x=Math.max(size,Math.min(W-size,x));y=Math.max(size*.6,Math.min(H-size*.6,y))}
+if(state==='play')swimSchool(dt,x-oldX,y-oldY);
+for(let i=0;i<fish.length;i++){let f=fish[i];if(state==='intro'){f.x+=dt*f.dir*f.v;f.y+=Math.cos(t+f.k)*dt*3;if(f.x>W+f.r*2+2||f.x< -f.r*2-2){fish[i]=spawn();continue}}body(f.x,f.y,f.r,f.dir,f.color,t*7+f.k);if(state==='play'&&Math.hypot(f.x-x,(f.y-y)*1.65)<(f.r+size)*.79){if(f.r>=size){end(false);break}score+=Math.ceil(f.r);size=Math.min(50,size+1.5);fish[i]=spawn();hud();if(size>=50){end(true);break}}}if(state==='play')resolveHunts();body(x,y,size,face,'#ffca56',t*8);requestAnimationFrame(frame)}
+const map={ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right',ArrowUp:'up',w:'up',ArrowDown:'down',s:'down'};
+onkeydown=e=>{let k=map[e.key]||map[e.key.toLowerCase()];if(k&&state==='play'){e.preventDefault();target=null;keys.add(k)}if(e.key==='Escape'&&!e.repeat){if(state==='paused')play();else hold()}};
+onkeyup=e=>keys.delete(map[e.key]||map[e.key.toLowerCase()]);function point(e){if(state!=='play')return;let r=c.getBoundingClientRect();target={x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};keys.clear()}
+c.onpointerdown=e=>{c.setPointerCapture(e.pointerId);point(e)};c.onpointermove=point;el('start').onclick=play;el('pause').onclick=hold;onblur=hold;onresize=resize;resize();reset();requestAnimationFrame(frame)
+</script></html>
