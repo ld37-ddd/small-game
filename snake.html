@@ -1,0 +1,59 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>贪吃蛇 · 青玉游园</title><style>
+*{box-sizing:border-box}body{margin:0;background:#101f1c;color:#f4f0d7;font:16px system-ui,"Microsoft YaHei",sans-serif}main{max-width:690px;margin:auto;padding:24px 16px}.top,.stats,footer{display:flex;align-items:center;justify-content:space-between;gap:12px}small{color:#9bbbae;font:12px monospace;letter-spacing:.14em}h1{font-size:clamp(34px,7vw,52px);margin:14px 0 6px;font-weight:650;letter-spacing:-.05em}p{color:#b2c7bb;margin:0 0 20px}.stats{background:#20362e;padding:14px 18px;border:1px solid #55715c;border-radius:14px 14px 0 0;font-size:13px}.stats b{display:block;font-size:24px;color:#e8efa9;font-variant-numeric:tabular-nums}.field{position:relative;border:1px solid #55715c;border-top:0;border-radius:0 0 14px 14px;overflow:hidden;background:#182b24}canvas{display:block;width:100%;touch-action:none;aspect-ratio:1}.veil{position:absolute;inset:0;display:grid;place-items:center;background:#10271c8c}.veil[hidden]{display:none}.card{text-align:center;padding:28px 18px;border:1px solid #94b181;border-radius:16px;background:#223b2bef;box-shadow:0 14px 36px #0b170c88;max-width:94%}.card h2{font-size:30px;margin:7px 0 10px}.card p{line-height:1.65;font-size:14px;max-width:270px;margin:0 auto 18px}button{border:0;border-radius:8px;padding:10px 18px;background:#dceca2;color:#233425;font:inherit;font-weight:700;cursor:pointer;touch-action:manipulation}button:focus-visible{outline:3px solid #ffb371}button:disabled{opacity:.5;cursor:default}.pad{display:grid;grid-template-columns:repeat(3,48px);gap:5px}.pad button{padding:8px 0;background:#294739;color:#e6edce}.pad button:first-child{grid-column:2}.pad button:nth-child(2){grid-column:1}footer{margin-top:16px}.help{font-size:12px;line-height:1.8;color:#a5bbae;text-align:right}.badge{border:1px solid #57775e;border-radius:20px;padding:6px 10px;font-size:11px;color:#b7d8a7}@media(max-width:430px){main{padding:14px 10px}.help{max-width:150px}.stats{padding:10px 12px}}
+</style><style>#arcade-navigation{position:relative;z-index:100;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;box-sizing:border-box;padding:12px 20px;background:#172922;color:#e1e9d6;font:13px system-ui,sans-serif;border-bottom:1px solid #526153}#arcade-navigation a{display:inline-block;color:#e1e9d6;text-decoration:none;border:1px solid #74856f;border-radius:7px;padding:7px 12px;font-weight:700}#arcade-navigation a:hover{background:#3a5140}#arcade-navigation a:focus-visible{outline:3px solid #f5d396}#arcade-navigation span{font-size:12px}</style><nav id="arcade-navigation" aria-label="游戏大厅导航"><a href="index.html">← 返回游戏厅</a><span>贪吃蛇</span></nav><main><div class="top"><small>JADE GARDEN　/　ARCADE 04</small><span class="badge">经典模式</span></div><h1>贪吃蛇 · 青玉游园</h1><p>吃掉红果，越长越快。给自己留一条回去的路。</p><div class="stats"><span>本局得分<b id="score">0</b></span><span>最高分<b id="best">0</b></span><span>速度<b id="speed">1</b></span><button id="pause" disabled>暂停 Ⅱ</button></div><div class="field"><canvas id="garden" width="600" height="600" aria-label="贪吃蛇游戏区，支持滑动转向"></canvas><div class="veil" id="veil"><div class="card"><small>ONE MORE BITE</small><h2 id="heading">来一口红果</h2><p id="message">吃一个红果得 10 分。碰到围墙或自己的身体，本局结束。</p><button id="start">开始游戏　›</button></div></div></div><footer><div class="pad"><button data-dir="up" aria-label="向上">↑</button><button data-dir="left" aria-label="向左">←</button><button data-dir="down" aria-label="向下">↓</button><button data-dir="right" aria-label="向右">→</button></div><div class="help">方向键 / WASD 转向<br>手机滑动或点方向按钮<br>空格暂停 · 切出页面自动暂停</div></footer></main><script>
+const $=id=>document.getElementById(id),c=$('garden'),g=c.getContext('2d'),N=20,cell=30;
+const dirs={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}};
+let snake,dir,queue,food,score,state='ready',acc=0,last=0,best=0;
+try{best=Math.max(0,Number(localStorage.getItem('jade-snake-best'))||0)}catch{}
+const equal=(a,b)=>a.x===b.x&&a.y===b.y;
+function level(){return Math.min(7,1+Math.floor(score/50))}
+function interval(){return .19-(level()-1)*.018}
+function spawnFood(){
+ const empty=[];
+ for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(!snake.some(p=>p.x===x&&p.y===y))empty.push({x,y});
+ food=empty.length?empty[Math.floor(Math.random()*empty.length)]:null;
+}
+function hud(){$('score').textContent=score;$('best').textContent=best;$('speed').textContent=level()}
+function reset(){snake=[{x:8,y:10},{x:7,y:10},{x:6,y:10},{x:5,y:10}];dir=dirs.right;queue=[];score=0;acc=0;spawnFood();hud()}
+function start(){if(state!=='paused')reset();state='play';acc=0;$('veil').hidden=true;$('pause').disabled=false;$('start').blur()}
+function overlay(title,text,label){$('heading').textContent=title;$('message').textContent=text;$('start').textContent=label;$('veil').hidden=false;$('pause').disabled=true}
+function pause(){if(state!=='play')return;state='paused';queue=[];overlay('在树荫下歇一歇','准备好了就继续，红果还在等你。','继续游戏　›')}
+function end(won=false){state='over';queue=[];overlay(won?'吃满整座花园！':'这次先吃到这里','本局 '+score+' 分　·　最高 '+best+' 分','再玩一次　↻')}
+function turn(name){
+ if(state!=='play'||queue.length>=2)return;
+ const next=dirs[name],previous=queue.length?queue[queue.length-1]:dir;
+ if(equal(next,previous)||next.x===-previous.x&&next.y===-previous.y)return;
+ queue.push(next);
+}
+function tick(){
+ if(state!=='play')return;
+ if(queue.length)dir=queue.shift();
+ const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+ const eat=food&&equal(head,food);
+ const occupied=eat?snake:snake.slice(0,-1);
+ if(head.x<0||head.x>=N||head.y<0||head.y>=N||occupied.some(p=>equal(p,head))){end();return}
+ snake.unshift(head);
+ if(eat){score+=10;if(score>best){best=score;try{localStorage.setItem('jade-snake-best',String(best))}catch{}}spawnFood();hud();if(!food)end(true)}
+ else snake.pop();
+}
+function round(x,y,w,h,r,color){g.fillStyle=color;g.beginPath();g.roundRect(x,y,w,h,r);g.fill()}
+function disk(x,y,r,color){g.fillStyle=color;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill()}
+function draw(){
+ g.fillStyle='#192e25';g.fillRect(0,0,600,600);
+ for(let y=0;y<N;y++)for(let x=0;x<N;x++)if((x+y)%2===0){g.fillStyle='#1d3329';g.fillRect(x*cell,y*cell,cell,cell)}
+ if(food){const x=food.x*cell+15,y=food.y*cell+16;disk(x,y+2,11,'#12241b');disk(x,y,10,'#f38b72');disk(x-3,y-3,3,'#ffd7a2');round(x+1,y-14,7,4,2,'#b9d890')}
+ for(let i=snake.length-1;i>=0;i--){const p=snake[i];round(p.x*cell+2,p.y*cell+2,26,26,7,i===0?'#e4efad':i%2?'#a6c979':'#8eb569');
+ if(i>0){const before=snake[i-1],dx=before.x-p.x,dy=before.y-p.y;round(p.x*cell+9+dx*8,p.y*cell+9+dy*8,12,12,3,'#aacb7e')}}
+ const h=snake[0],x=h.x*cell+15,y=h.y*cell+15,side={x:-dir.y,y:dir.x};
+ for(const sign of [-1,1]){disk(x+dir.x*6+side.x*6*sign,y+dir.y*6+side.y*6*sign,3,'#22392b')}
+ g.strokeStyle='#587749';g.lineWidth=3;g.strokeRect(1.5,1.5,597,597);
+}
+function frame(now){const dt=Math.min(.1,(now-last)/1000);last=now;if(state==='play'){acc+=dt;while(acc>=interval()&&state==='play'){acc-=interval();tick()}}draw();requestAnimationFrame(frame)}
+const keys={ArrowUp:'up',w:'up',ArrowDown:'down',s:'down',ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right'};
+onkeydown=e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k){e.preventDefault();if(!e.repeat)turn(k)}else if(e.code==='Space'){e.preventDefault();if(!e.repeat){if(state==='play')pause();else if(state==='paused')start()}}};
+let touch=null;c.onpointerdown=e=>{touch={x:e.clientX,y:e.clientY};c.setPointerCapture(e.pointerId)};
+c.onpointermove=e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;turn(Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up');touch={x:e.clientX,y:e.clientY}};
+c.onpointerup=c.onpointercancel=()=>touch=null;
+document.querySelectorAll('[data-dir]').forEach(b=>b.onclick=()=>turn(b.dataset.dir));$('start').onclick=start;$('pause').onclick=pause;onblur=pause;document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
+reset();requestAnimationFrame(frame)
+</script></html>
